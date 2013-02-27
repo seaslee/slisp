@@ -25,6 +25,55 @@ alpha,number and '_'. You can define a variable with the 'define' procedure.
 - slisp also support to define function.It is also describled in SICP.
 
 ###4.Examples
+- Expressions:
 
+```scheme
+66
+;value: 66
+(+ 137 349)
+;value: 486
+(+ 10 5)
+;value: 2
+'a
+;value: a
+''a
+;value: (quote a)
+(define (abs x)
+  (if (< x 0)
+      (- x)
+      x))
+;value: ()
+(abs 3)
+;value: 3
+(define (abs x)
+  (cond ((< x 0)(- x)
+      (else x))))
+;value: ()
+(abs 3)
+;3
+```
+- Define variable and procedure:
+
+```scheme
+(define size 2)
+;value: ()
+size
+;value: 2
+(define (square x) (* x x))
+;value: ()
+(square 1024)
+;value: 1048576
+```
+- Recursion:
+
+```scheme
+(define (factorial n)
+  (if (= n 1)
+      1
+      (* n (factorial (- n 1)))))
+;value: ()
+(factorial 9)
+;value: 362880
+```
 
 slisp can support many(I can't test all) examples of Scheme code in SICP. I think it's will be better!
