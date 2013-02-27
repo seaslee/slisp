@@ -24,4 +24,4 @@ alpha,number and '_'. You can define a variable with the 'define' procedure.
 - slisp support recursion (not tail recursion).You can implementation iteration with the recursion way.
 - slisp also support to define function.It is also describled in SICP.
 
-
+slisp can support many(I can't test all) examples of Scheme code in SICP. I think it's will be better!
