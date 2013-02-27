@@ -77,8 +77,8 @@ size
 (factorial 9)
 ;value: 362880
 ```
-###Problems
+###5.Problems
 The main problem is data type and error handle. It is the work to deal with.
-
+***
 slisp can support many(I can't test all) examples of Scheme code in SICP. I think it's will be better!
 
