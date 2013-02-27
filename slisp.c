@@ -28,11 +28,12 @@
 #define MAXNUM_LINE 1000
 #define MAXNUM_EXPR 1000
 #define OB_MEM 100000
-#define BUILTIN_NUM 15
+#define BUILTIN_NUM 21
 typedef enum {Nil,Boolean,Int,Float,Variable,Symbol,Pair,BuiltinFun} dType;
 
 char * builtin_op []= {"+","-","*","/",">",">=","<","<=","==","%","cons",
-                       "car","cdr","and","or","not"
+                       "car","cdr","and","or","not","is_pair","length",
+                       "list","list_ref","append"
                       };
 /*
 0:syntax error
@@ -64,8 +65,12 @@ struct pnode
 };
 
 struct pnode * globalenvl;
+//nil represent in slisp
 const struct pnode nil = {.t=Nil,{.nval=0}};
 struct pnode * pnil=&nil;
+//return when error is happened
+const struct pnode err = {.t=Nil,{.nval=14}};
+struct pnode * perr=&err;
 const struct pnode true_v= {.t=Boolean,{.nval=1}};
 struct pnode * pt=&true_v;
 const struct pnode false_v= {.t=Boolean,{.nval=0}};
@@ -137,6 +142,7 @@ int is_builtin(char *s)
  * ( :: 11
  * ) :: 12
  * ' :: 13
+ * kong::14
  * int :: Int
  * float :: Float
  * variable: Variable
@@ -185,13 +191,15 @@ struct pnode * readtoken()
             else
             {
                 print_error(0);
-                return NULL;
+                token=perr;
+                return token;
             }
         }
         else
         {
             print_error(0);
-            return NULL;
+            token=perr;
+            return token;
         }
     }
     else if(c=='+'||c=='-'||c=='*'||c=='/'||c=='%')
@@ -215,7 +223,8 @@ struct pnode * readtoken()
         else
         {
             print_error(0);
-            return NULL;
+            token=perr;
+            return token;
         }
     }
     else if(c=='>'||c=='<'||c=='=')
@@ -256,7 +265,8 @@ struct pnode * readtoken()
         else
         {
             print_error(0);
-            return NULL;
+            token=perr;
+            return token;
         }
     }
     else if(isalpha(c)||c=='_')
@@ -288,7 +298,8 @@ struct pnode * readtoken()
         else
         {
             print_error(0);
-            return NULL;
+            token=perr;
+            return token;
         }
     }
     else if(isdigit(c)&&c!='0')
@@ -352,7 +363,8 @@ struct pnode * readtoken()
         else
         {
             print_error(0);
-            return NULL;
+            token=perr;
+            return token;
         }
     }
     else if(c=='.'||c=='0')
@@ -379,7 +391,8 @@ struct pnode * readtoken()
             else
             {
                 print_error(0);
-                return NULL;
+                token=perr;
+                return token;
             }
         }
 dot:
@@ -409,13 +422,15 @@ dot:
         else
         {
             print_error(0);
-            return NULL;
+            token=perr;
+            return token;
         }
     }
     else
     {
         print_error(0);
-        return NULL;
+        token=perr;
+        return token;
     }
 }
 //========================================================
@@ -512,7 +527,7 @@ struct pnode *qconsexpr()
     else if(res==12)
     {
         print_error(2);
-        return NULL;
+        return perr;
     }
     else if(res==13)
     {
@@ -556,8 +571,10 @@ struct pnode *read()
         break;
     case 12:
         print_error(2);
-        ret=NULL;
+        ret=perr;
         break;
+    case 14:
+        ret=perr;
     }
     return ret;
 }
@@ -858,7 +875,6 @@ void eval_define(struct pnode *expr,struct pnode * envl)
     def_variable(var,val,envl);
 }
 
-
 //(if <pre> <con> <alt>);
 struct pnode * eval_if(struct pnode *expr,struct pnode * envl)
 {
@@ -868,18 +884,14 @@ struct pnode * eval_if(struct pnode *expr,struct pnode * envl)
     struct pnode * res;
     if(is_true(eval(pred,envl)))
     {
-        printf("TTTTTTTTTTTTTTTTT\n");
         printpnode(conseq);
         res=eval(conseq,envl);
         printpnode(res);
-        printf("\n==============\n");
     }
     else if(alter->t!=Nil)
     {
-        printf("FFFFFFFFFFFFFFFFFFFf\n");
         printpnode(alter);
         res=eval(alter,envl);
-        printf("\n================\n");
     }
     else
         res=NULL;
@@ -915,17 +927,12 @@ struct pnode * trans_cond_to_if(struct pnode *p)
     {
         struct pnode *first=car(p);
         struct pnode *rest=cdr(p);
-        printf("\nfirst========\n");
-        printpnode(first);
-        printf("\nsecond========\n");
-        printpnode(rest);
         struct pnode * pre=car(first);
         struct pnode * e=cdr(first);
         if(pre->t==Variable&&has_tag(pre,"else"))
         {
             if(rest->t==Nil)
             {
-                printf("here else\n");
                 seq_to_expr(e);
             }
             else
@@ -936,7 +943,6 @@ struct pnode * trans_cond_to_if(struct pnode *p)
         }
         else
         {
-            printf("here no  else\n");
             struct pnode * b=(struct pnode *)malloc(sizeof(*b));
             b->t=Variable;
             struct slist* s=str_install("if");
@@ -1059,6 +1065,15 @@ struct pnode * sub(struct pnode * args)
     int isch=1;
     int isfirst=1;
     struct pnode * c=args;
+    if((car(c)->t==Int||car(c)->t==Float)&&cdr(c)->t==Nil)
+    {
+        p->t=car(c)->t;
+        if(car(c)->t==Int)
+            p->nval=-car(c)->nval;
+        else
+            p->dval=-car(c)->dval;
+        return p;
+    }
     while(c->t!=Nil)
     {
         if(car(c)->t==Int&&(!isdouble))
@@ -1123,9 +1138,6 @@ struct pnode * sub(struct pnode * args)
         p->t=Int;
         p->nval=sumn;
     }
-    printf("ppppppppppp\n");
-    printpnode(p);
-    printf("ppppppppppp\n");
     return p;
 }
 
@@ -1447,6 +1459,7 @@ struct pnode * not_f(struct pnode * args)
     else
         return pt;
 }
+
 struct pnode * remainder_f(struct pnode *args)
 {
     struct pnode *first=car(args);
@@ -1464,6 +1477,88 @@ struct pnode * remainder_f(struct pnode *args)
         return NULL;
     }
 };
+
+struct pnode * is_pair(struct pnode *args)
+{
+    if(car(args)->t==Pair)
+        return pt;
+    else
+        return pf;
+};
+
+struct pnode * length(struct pnode *args)
+{
+    struct pnode * res=(struct pnode *)malloc(sizeof(*res));
+    struct pnode *c=car(args);
+    int i=0;
+    while (c->t!=Nil)
+    {
+        i++;
+        c=cdr(c);
+    }
+    res->t=Int;
+    res->nval=i;
+    return res;
+};
+struct pnode * length_value(struct pnode *args)
+{
+    return length(args)->nval;
+};
+
+struct pnode * list_p(struct pnode *args)
+{
+    return args;
+};
+
+struct pnode * list_ref(struct pnode *args)
+{
+    struct pnode * res=(struct pnode *)malloc(sizeof(*res));
+    struct pnode *f=car(args);
+    struct pnode *s=cadr(args);
+    int i=0;
+    int t=0;
+    if(s->t==Int)
+        t=s->nval;
+    else
+    {
+        print_error(3);//!!!!!Error type
+        return NULL;
+    }
+    if(t>length_value(args))
+    {
+        print_error(3);//!!!!!!Error type
+        return NULL;
+    }
+    while (f->t!=Nil)
+    {
+        if(i==t)
+            return car(f);
+        else
+        {
+            i++;
+            f=cdr(f);
+        }
+    }
+};
+
+struct pnode * append(struct pnode *args)
+{
+    struct pnode * s1=car(args);
+    struct pnode * s2=cadr(args);
+    if(s1==Nil)
+        return s2;
+    else
+    {
+        struct pnode * c=s1;
+        while(cdr(c)->t!=Nil)
+        {
+            c=cdr(c);
+        }
+        c->pcons.cdr=s2;
+    }
+    return s1;
+};
+
 //==================================================
 struct pnode * apply(struct pnode *pro,struct pnode * args)
 {
@@ -1496,7 +1591,6 @@ struct pnode * apply(struct pnode *pro,struct pnode * args)
             printpnode(args);
             return car_p(args);
         }
-
         else if(has_tag(pro,builtin_op[12]))
             return cdr_p(args);
         else if(has_tag(pro,builtin_op[13]))
@@ -1505,7 +1599,16 @@ struct pnode * apply(struct pnode *pro,struct pnode * args)
             return or_f(args);
         else if(has_tag(pro,builtin_op[15]))
             return not_f(args);
-
+        else if(has_tag(pro,builtin_op[16]))
+            return is_pair(args);
+        else if(has_tag(pro,builtin_op[17]))
+            return length(args);
+        else if(has_tag(pro,builtin_op[18]))
+            return list_p(args);
+        else if(has_tag(pro,builtin_op[19]))
+            return list_ref(args);
+        else if(has_tag(pro,builtin_op[20]))
+            return append(args);
     }
     else if(pro->t==Pair)
     {
@@ -1561,6 +1664,8 @@ struct pnode * eval(struct pnode *expr,struct pnode * envl)
             printf("\nargs========\n");
             printpnode(args);
             printf("\n end args========\n");
+            if(pro==NULL||args==NULL)
+                return NULL;
             return apply(pro,args);
         }
     }
@@ -1675,9 +1780,15 @@ int main()
     {
         printf("%s",in_prompt);
         p=read();
-        printpnode(p);
-        if(p!=NULL)
+        //printf("The type of input is %d\n",p->t);
+        if(p->t==Nil&&p->nval==14)
         {
+            //printf("Input is invalid");
+            continue;
+        }
+        else
+        {
+            //printf("begin exe\n");
             res=eval(p,globalenvl);
             if(res!=NULL)
             {
