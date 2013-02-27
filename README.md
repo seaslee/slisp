@@ -46,11 +46,13 @@ alpha,number and '_'. You can define a variable with the 'define' procedure.
 (abs 3)
 ;value: 3
 (define (abs x)
-  (cond ((< x 0)(- x)
-      (else x))))
+  (cond ((< x 0)(- x))
+      (else x)))
 ;value: ()
 (abs 3)
-;3
+;value: 3
+(abs (- 3))
+;value: -3
 ```
 - Define variable and procedure:
 
